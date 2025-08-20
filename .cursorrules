@@ -1,0 +1,341 @@
+# Cursor Rules for React + TypeScript Project
+
+## 项目概述
+这是一个使用React和TypeScript进行开发的项目。请遵循以下规则来确保代码质量和一致性。
+
+## 代码风格和规范
+
+### TypeScript 规范
+- 始终使用TypeScript，避免使用`any`类型
+- 为所有函数参数、返回值和变量提供明确的类型注解
+- 使用接口（interface）定义对象类型，使用类型别名（type）定义联合类型
+- 优先使用`const`声明，避免使用`let`，除非变量需要重新赋值
+- 使用可选链操作符（?.）和空值合并操作符（??）处理可能为空的值
+
+### React 组件规范
+- 使用函数组件和React Hooks，避免使用类组件
+- 组件名称使用PascalCase命名
+- 文件名与组件名保持一致，使用PascalCase
+- 使用TypeScript接口定义组件的props类型
+- 优先使用React.FC类型或直接定义函数组件类型
+
+### 文件组织
+- 组件文件放在`src/components`目录下
+- 页面组件放在`src/pages`目录下
+- 工具函数放在`src/utils`目录下
+- 类型定义放在`src/types`目录下
+- 常量定义放在`src/constants`目录下
+- 布局组件放在`src/layouts`目录下
+- 菜单配置放在`src/config/menu.ts`文件中
+- 路由配置放在`src/routes`目录下
+
+### 导入和导出规范
+- 使用ES6模块语法（import/export）
+- 按以下顺序组织导入语句：
+  1. React相关导入
+  2. 第三方库导入
+  3. 内部模块导入
+  4. 类型导入
+- 使用命名导入而不是默认导入（除非是React组件）
+
+### 代码格式化
+- 使用2个空格进行缩进
+- 使用单引号而不是双引号
+- 在语句末尾使用分号
+- 在对象和数组的最后一个元素后添加逗号
+- 使用模板字符串而不是字符串拼接
+
+### 命名规范
+- 变量和函数使用camelCase
+- 常量使用UPPER_SNAKE_CASE
+- 组件使用PascalCase
+- 文件名使用kebab-case或PascalCase（组件文件）
+- 页面组件使用Page后缀，如：UserListPage
+- 布局组件使用Layout后缀，如：MainLayout
+- 菜单项使用Menu后缀，如：SideMenu
+
+## 页面布局和菜单结构
+
+### 整体布局规范
+- 采用左侧菜单 + 右侧内容的经典布局
+- 左侧菜单固定宽度（建议240px），可折叠
+- 右侧内容区域自适应宽度，包含header、content、footer
+- 使用CSS Grid或Flexbox实现响应式布局
+
+### 左侧菜单结构
+- 菜单支持多级嵌套的树形结构
+- 每个菜单项包含：图标、标题、路由路径、权限标识
+- 子菜单支持展开/折叠功能
+- 当前激活菜单项高亮显示
+- 菜单项支持权限控制显示/隐藏
+
+### 右侧内容区域
+- **Header区域**：包含用户信息、通知、设置等操作按钮
+- **Title区域**：显示当前页面标题，支持动态更新
+- **Breadcrumb区域**：显示当前页面路径，支持点击导航
+- **Content区域**：主要内容区域，支持滚动
+- **Footer区域**：版权信息、版本号等
+
+### 页面对象结构
+- 每个菜单项对应一个页面对象（Page Object）
+- 页面对象可以包含子页面对象，形成层级结构
+- 页面对象包含：标题、路由、组件、权限、图标等属性
+- 支持页面对象的动态加载和缓存
+
+## 最佳实践
+
+### 状态管理
+- 优先使用React的useState和useContext进行状态管理
+- 对于复杂状态，考虑使用useReducer
+- 避免过度使用全局状态，优先使用局部状态
+
+### 性能优化
+- 使用React.memo包装纯组件
+- 使用useCallback和useMemo优化性能
+- 避免在渲染函数中创建对象或函数
+- 使用React.lazy进行代码分割
+
+### 错误处理
+- 使用Error Boundary捕获组件错误
+- 为异步操作提供适当的错误处理
+- 使用try-catch包装可能出错的代码
+
+### 测试
+- 为所有组件编写单元测试
+- 使用Jest和React Testing Library
+- 测试文件命名格式：`ComponentName.test.tsx`
+
+## 代码示例
+
+### 组件模板
+```typescript
+import React from 'react';
+
+interface ComponentNameProps {
+  title: string;
+  onClick?: () => void;
+}
+
+const ComponentName: React.FC<ComponentNameProps> = ({ title, onClick }) => {
+  return (
+    <div onClick={onClick}>
+      <h1>{title}</h1>
+    </div>
+  );
+};
+
+export default ComponentName;
+```
+
+### Hook使用示例
+```typescript
+import { useState, useEffect, useCallback } from 'react';
+
+const useCustomHook = (initialValue: string) => {
+  const [value, setValue] = useState<string>(initialValue);
+  
+  const updateValue = useCallback((newValue: string) => {
+    setValue(newValue);
+  }, []);
+  
+  useEffect(() => {
+    // 副作用逻辑
+  }, [value]);
+  
+  return { value, updateValue };
+};
+```
+
+### 菜单配置示例
+```typescript
+interface MenuItem {
+  id: string;
+  title: string;
+  icon?: string;
+  path?: string;
+  component?: React.ComponentType;
+  children?: MenuItem[];
+  permission?: string;
+  order?: number;
+}
+
+const menuConfig: MenuItem[] = [
+  {
+    id: 'dashboard',
+    title: '仪表盘',
+    icon: 'DashboardIcon',
+    path: '/dashboard',
+    component: DashboardPage,
+  },
+  {
+    id: 'user-management',
+    title: '用户管理',
+    icon: 'UserIcon',
+    children: [
+      {
+        id: 'user-list',
+        title: '用户列表',
+        path: '/user/list',
+        component: UserListPage,
+        permission: 'user:list',
+      },
+      {
+        id: 'user-profile',
+        title: '用户详情',
+        path: '/user/profile',
+        component: UserProfilePage,
+        permission: 'user:profile',
+      },
+    ],
+  },
+];
+```
+
+### 布局组件示例
+```typescript
+import React from 'react';
+
+interface MainLayoutProps {
+  children: React.ReactNode;
+}
+
+const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  return (
+    <div className="layout-container">
+      <SideMenu />
+      <div className="content-area">
+        <Header />
+        <Title />
+        <Breadcrumb />
+        <main className="main-content">
+          {children}
+        </main>
+        <Footer />
+      </div>
+    </div>
+  );
+};
+```
+
+### 页面对象示例
+```typescript
+interface PageObject {
+  id: string;
+  title: string;
+  path: string;
+  component: React.ComponentType;
+  breadcrumb?: string[];
+  permissions?: string[];
+  children?: PageObject[];
+  meta?: {
+    icon?: string;
+    order?: number;
+    hidden?: boolean;
+    cache?: boolean;
+  };
+}
+
+const pageObjects: Record<string, PageObject> = {
+  'user-list': {
+    id: 'user-list',
+    title: '用户列表',
+    path: '/user/list',
+    component: UserListPage,
+    breadcrumb: ['用户管理', '用户列表'],
+    permissions: ['user:list'],
+    meta: {
+      icon: 'UserIcon',
+      order: 1,
+      cache: true,
+    },
+  },
+};
+```
+
+## 禁止事项
+- 不要使用`console.log`，使用适当的日志库
+- 不要直接操作DOM，使用React的ref
+- 不要使用内联样式，使用CSS模块或styled-components
+- 不要忽略TypeScript错误，修复所有类型问题
+- 不要在组件中硬编码菜单结构，使用配置文件
+- 不要直接操作路由，使用React Router的hooks
+- 不要在布局组件中放置业务逻辑
+
+## 提交规范
+- 使用语义化的提交信息
+- 格式：`type(scope): description`
+- 类型：feat, fix, docs, style, refactor, test, chore
+
+## 依赖管理
+- 定期更新依赖包
+- 使用yarn或npm锁定文件
+- 避免使用过时的包版本
+
+## 文档
+- 为复杂组件编写JSDoc注释
+- 更新README.md文件
+- 维护CHANGELOG.md记录版本变更
+
+## 安全考虑
+- 验证所有用户输入
+- 使用HTTPS进行API调用
+- 避免在客户端存储敏感信息
+- 使用环境变量管理配置
+
+## 可访问性
+- 使用语义化的HTML标签
+- 为交互元素提供适当的ARIA属性
+- 确保键盘导航功能正常
+- 提供适当的颜色对比度
+
+## 国际化
+- 使用i18n库处理多语言
+- 避免硬编码文本
+- 考虑文本长度变化对布局的影响
+
+## 响应式设计
+- 使用CSS Grid和Flexbox进行布局
+- 测试不同屏幕尺寸
+- 使用相对单位（rem, em, %）而不是固定像素
+
+## 代码审查
+- 所有代码变更都需要经过审查
+- 检查代码质量和性能影响
+- 确保测试覆盖率
+- 验证可访问性要求
+
+## 持续集成
+- 配置自动化测试
+- 设置代码质量检查
+- 自动化部署流程
+- 监控应用性能
+
+## 布局和菜单开发指南
+
+### 开发流程
+1. 首先定义页面对象结构（PageObject）
+2. 配置菜单结构（menuConfig）
+3. 创建布局组件（MainLayout）
+4. 实现各个页面组件
+5. 配置路由和权限
+
+### 组件职责分离
+- **MainLayout**: 负责整体布局结构
+- **SideMenu**: 负责菜单渲染和交互
+- **Header**: 负责顶部操作区域
+- **Breadcrumb**: 负责面包屑导航
+- **Page Components**: 负责具体业务逻辑
+
+### 状态管理建议
+- 菜单展开/折叠状态使用Context管理
+- 当前激活菜单项使用路由状态
+- 用户权限信息使用全局状态管理
+- 页面缓存使用React.memo和useMemo
+
+### 性能优化
+- 菜单组件使用React.memo避免不必要的重渲染
+- 页面组件使用React.lazy进行代码分割
+- 路由配置使用动态导入
+- 菜单数据使用useMemo缓存
+
+请遵循这些规则来维护高质量的React + TypeScript代码库。
