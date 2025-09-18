@@ -1,0 +1,16 @@
+{
+  "name": "agentpages-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/frontend",
+    "packages/backend"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "dev:frontend": "npm run dev -w packages/frontend",
+    "dev:backend": "npm run start:dev -w packages/backend",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down"
+  }
+}
