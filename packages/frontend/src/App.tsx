@@ -1,35 +1,57 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import axios from 'axios';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+// Define a type for our product data for type safety
+interface Product {
+  id: number;
+  Name: string;
+  SKU: string;
+  Price: number;
 }
 
-export default App
+function App() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // The backend is running on port 3000, so we make the request there.
+      // This calls the GET /api/proxy/master-data/Products endpoint we created.
+      const response = await axios.get('http://localhost:3000/api/proxy/master-data/Products');
+      setProducts(response.data);
+    } catch (err) {
+      setError('Failed to fetch products. Is the backend running? Is NocoDB accessible?');
+      console.error(err);
+    }
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="App">
+      <header className="App-header">
+        <h1>AgentPages NocoDB Integration Test</h1>
+        <p>Click the button to fetch master data ('Products') from the backend.</p>
+        <button onClick={fetchProducts} disabled={isLoading}>
+          {isLoading ? 'Loading...' : 'Fetch Products from NocoDB'}
+        </button>
+        
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+        
+        {products.length > 0 && (
+          <div>
+            <h2>Products Data:</h2>
+            <pre style={{ textAlign: 'left', backgroundColor: '#f0f0f0', padding: '1rem' }}>
+              {JSON.stringify(products, null, 2)}
+            </pre>
+          </div>
+        )}
+      </header>
+    </div>
+  );
+}
+
+export default App;

@@ -1,137 +1,132 @@
 
-# 基于LLM的生产级Web应用生成器 - 设计框架 (V8 - Final)
+# 基于LLM的生产级Web应用生成器 - 设计框架 (V9 - NocoDB)
 
 ## 1. 愿景与目标
 
-**愿景:** 创建一个AI驱动的**动态应用平台 (Dynamic Application Platform)**，它能将自然语言需求**实时转化**为可立即使用的业务应用，无需任何构建或部署等待。
-
-**核心目标:**
-- **即时创造:** 用户通过对话创造的应用，在点击“完成”的瞬间即可被终端用户访问和使用。
-- **运行时驱动:** 彻底摒弃编译、构建和部署流程，所有应用的定义和逻辑均在运行时动态加载和执行。
-- **安全沙箱:** 在提供极致灵活性的同时，通过沙箱机制确保动态生成代码的安全执行。
+(与V8版本相同)
 
 ---
 
 ## 2. 系统定位：真正的“动态应用平台”
 
-本系统进化为真正的**动态应用平台**。与V6版本最大的区别在于，我们彻底抛弃了基于Git和CI/CD的“编译时”思维，转向了完全的“运行时”架构。代码不再是部署产物，而是与用户数据一样，是存储在数据库中的一种**可执行资产**。
+(与V8版本相同)
 
 ---
 
-## 3. 面向企业的核心功能：主数据管理
+## 3. 主数据管理 (通过 NocoDB)
 
-(与V6版本相同，作为系统的业务上下文基础)
+这是一个核心架构变更。为了实现最大程度的解耦和复用，我们决定将**主数据管理**的功能完全外包给开源工具**NocoDB**。
+
+- **职责划分:**
+    - **NocoDB:** 负责所有主数据（如产品、仓库、客户）的创建、管理和维护。业务人员可以通过NocoDB的电子表格化界面轻松地管理这些核心数据。NocoDB会自动为这些数据表提供REST API。
+    - **本系统:** **不再存储和管理任何主数据**。它通过API成为NocoDB中主数据的**消费者**。其核心职责是利用这些主数据作为上下文，来构建动态的、事务性的业务流程应用（如采购申请、报销等）。
 
 ---
 
-## 4. 运行时动态应用架构
+## 4. 运行时动态应用架构 (集成NocoDB)
 
-**核心思想:** 应用的“形态”和“行为”都以结构化定义的形式存储在数据库中。前端是一个通用的“应用渲染器”，后端是一套通用的“记录处理API”。它们根据从数据库中读取的应用定义，来动态地改变自己的外观和行为。
+**核心思想:** 系统的业务上下文（主数据）由外部NocoDB提供，系统自身则专注于动态应用的生成和渲染。
 
-(架构图与V7版本相同)
+```mermaid
+graph TD
+    subgraph "数据管理 (外部)"
+        U[业务人员] <--> NocoDB[NocoDB 实例];
+        NocoDB -- 提供 --> API[REST API for Master Data];
+    end
+
+    subgraph "本系统"
+        subgraph "Admin (App Creator)"
+            A[Admin] -- "我要创建..." --> D[LLM智能引擎];
+        end
+
+        subgraph "设计与注册"
+            D -- "1. 获取'产品'表结构" --> API;
+            D -- "2. 生成定义" --> E_UI["UI定义 (JSON)"];
+            D -- 生成 --> E_LOGIC["前端逻辑 (JS)"];
+            D -- 生成 --> E_SCHEMA["后端校验规则 (JSON)"];
+            E_UI & E_LOGIC & E_SCHEMA -- 存入 --> DB[(系统数据库)];
+        end
+
+        subgraph "End User (App User)"
+            Q[End User] --> P{用户门户};
+            P -- 点击应用 --> R[动态应用渲染器];
+            R -- 读取 --> DB;
+            R -- "获取'产品'列表" --> T[通用后端API];
+            T -- "代理请求" --> API;
+            R -- 执行逻辑 --> S[安全沙箱 (Web Worker)];
+            R -- 提交数据 --> T;
+            T -- 写入数据 --> DB;
+        end
+    end
+```
 
 ### 4.1. 关键组件
-- **动态应用渲染器 (Dynamic App Renderer):** 前端核心，一个高度通用的React组件。它在运行时从数据库获取指定应用的“UI定义(JSON)”，然后解析该JSON并动态渲染出对应的UI界面。
-- **安全沙箱 (Secure Sandbox):** 一个运行在Web Worker中的隔离环境。从数据库获取的“前端逻辑(JS)”代码片段在此执行，可以进行计算和数据处理，但无法直接访问主页面的DOM或全局变量，只能通过`postMessage`与渲染器安全通信。
-- **通用后端API (Generic Backend API):** 一套固定的、与具体业务无关的API，如`POST /api/records/:app_type`。它接收到请求后，会从数据库加载该`app_type`对应的“后端校验规则(JSON)”，验证通过后才将数据存入`business_records`表的`jsonb`字段。
+- **NocoDB集成:** 系统后端现在包含一个“NocoDB服务”，负责根据配置（NocoDB地址、API令牌）与NocoDB的REST API通信，以获取主数据的**元数据（表结构）**和**实例数据（记录列表）**。
 
 ---
 
-## 5. 核心工作流程 (动态运行时模型)
+## 5. 核心工作流程 (集成NocoDB)
 
-(与V7版本相同)
+**前提：** 业务人员已在NocoDB中创建了名为`Products`的表，并添加了若干产品记录。
+
+### 5.1. 阶段一：Admin 创建应用
+1.  **发起:** Admin在“创建新业务”页面选择“产品”作为上下文。
+2.  **获取上下文:** **(核心变更)** 本系统后端首先调用NocoDB的元数据API，获取`Products`表的详细结构（字段名、类型等）。
+3.  **LLM解析:** 系统将用户的自然语言请求和从NocoDB获取的`Products`表结构一起提供给LLM。LLM据此推理出数据模型和UI工作流。
+4.  **生成与注册:** (同V8) 系统生成应用的UI/逻辑/校验规则定义，并存入**自己的数据库**中。
+
+### 5.2. 阶段二：End User 使用应用
+1.  **访问与动态渲染:** (同V8)
+2.  **交互 (获取主数据):** **(核心变更)** 在渲染采购申请的第一步（选择产品）时，前端渲染器会调用本系统的后端API（如`GET /api/master-data/products`）。该API会代理请求，从NocoDB的`GET /.../Products`接口获取产品列表，然后返回给前端。
+3.  **提交与存储:** (同V8) 最终的采购申请单数据，依然存储在本系统的`business_records`表的`jsonb`字段中。
 
 ---
 
 ## 6. 动态运行时实现方案
 
-(与V7版本相同)
+### 6.1. 核心技术栈
+(同V8)
+
+### 6.2. 数据库核心表结构
+- **本系统数据库 (PostgreSQL):**
+    - `business_records`: (同V8) 存储用户提交的业务数据。
+    - `app_definitions`: (同V8) 存储AI生成的应用定义。
+    - **注意:** `products`等所有主数据表**已从本系统数据库中移除**。
+
+### 6.3. 动态代码执行策略
+(同V8)
+
+### 6.4. NocoDB 集成策略
+- **配置:** 系统后端需增加环境变量：`NOCODB_BASE_URL` 和 `NOCODB_AUTH_TOKEN`。
+- **元数据发现:** 在Admin创建应用时，后端服务会调用NocoDB的元数据API（如 `/api/v1/db/meta/tables`）来获取表结构，作为LLM的上下文。
+- **数据代理:** 后端应提供一个通用的数据代理接口，如`GET /api/proxy/master-data/:tableName`。前端通过此接口向后端请求主数据，后端再从NocoDB获取并返回。这样做的好处是：
+    - 统一管理API凭证，无需暴露给前端。
+    - 可以在后端进行数据缓存、转换或聚合。
 
 ---
 
 ## 7. 动态运行时架构的核心挑战
 
-(与V7版本相同)
+(同V8)
 
 ---
 
 ## 8. 初始实现切片 (MVP Slice)
 
-**目标:** 为了在编码开始后能尽快看到一个可触摸、可验证的结果，我们定义了以下MVP切片。它将暂时绕过LLM，通过硬编码一个应用定义来打通整个核心流程。
+**目标:** 验证与外部NocoDB API的集成，并打通核心渲染流程。
 
 ### 8.1. MVP范围
+1.  **主数据:** **(核心变更)** 假设一个NocoDB实例正在运行，并已创建`Products`表。在开发初期，如果NocoDB未就绪，可在后端创建一个**模拟服务 (Mock Service)**，它模拟NocoDB的API，返回一个硬编码的产品列表JSON数组。
+2.  **应用定义:** (同V8) 手动在`app_definitions`表中插入一条“采购申请单”的记录。
+3.  **UI渲染器:** (同V8) 支持`Page`, `Form`, `Input`, `Button`，并新增支持`Select`组件用于选择产品。
+4.  **后端API:**
+    - `POST /api/records/purchase_requisition`: (同V8) 接收数据并打印到控制台。
+    - `GET /api/proxy/master-data/Products`: **(新增)** 实现此接口，它调用（或模拟调用）NocoDB API来获取产品列表。
 
-1.  **主数据:** 不涉及数据库，在后端通过一个`products.json`文件提供几个产品数据即可。
-2.  **应用定义:** 不涉及LLM，在数据库的`app_definitions`表中手动插入一条记录，代表“采购申请单”应用。
-3.  **UI渲染器:** `DynamicAppRenderer`只需支持`Page`, `Form`, `Input`, `Button`四个组件的渲染。
-4.  **沙箱逻辑:** `frontend_logic`只需实现接收表单数据并将其传递回主线程的功能。
-5.  **后端API:** `POST /api/records/purchase_requisition`只需接收数据并将其`console.log`出来即可，暂不存入数据库。
-
-### 8.2. 关键实现规格 (硬编码示例)
-
-**A. `app_definitions` 表中的硬编码记录:**
-
-- **app_type:** `purchase_requisition`
-- **ui_definition (JSON):**
-  ```json
-  {
-    "version": "1.0",
-    "layout": {
-      "component": "Page",
-      "title": "New Purchase Requisition",
-      "children": [
-        {
-          "component": "Form",
-          "name": "requisitionForm",
-          "onSubmit": { "action": "submitForm" },
-          "children": [
-            { "component": "Input", "name": "department", "label": "Department" },
-            { "component": "Input", "name": "total_price", "label": "Total Price", "type": "number" },
-            { "component": "Button", "label": "Submit", "type": "submit" }
-          ]
-        }
-      ]
-    }
-  }
-  ```
-- **frontend_logic (TEXT):**
-  ```javascript
-  // This code runs inside the Web Worker sandbox
-  self.onmessage = function(event) {
-    const { action, payload } = event.data;
-    if (action === 'submitForm') {
-      console.log('Sandbox received form data:', payload);
-      // For MVP, just pass the data back to the main thread for submission.
-      self.postMessage({ action: 'dispatchSubmit', payload: payload });
-    }
-  };
-  ```
-- **backend_schema (JSON):**
-  ```json
-  {
-    "type": "object",
-    "properties": {
-      "department": { "type": "string", "minLength": 2 },
-      "total_price": { "type": "number", "minimum": 0 }
-    },
-    "required": ["department", "total_price"]
-  }
-  ```
-
-**B. API 交互流程:**
-
-1.  `DynamicAppRenderer`中的`Form`组件在提交时，不会直接调用`fetch`。
-2.  它会调用`worker.postMessage({ action: 'submitForm', payload: formData })`将表单数据发送到沙箱。
-3.  沙箱中的`frontend_logic`代码执行，处理完毕后，调用`self.postMessage({ action: 'dispatchSubmit', payload: processedData })`将数据发回。
-4.  `DynamicAppRenderer`监听worker的消息，收到`dispatchSubmit`后，才真正执行`fetch('/api/records/purchase_requisition', ...)`。
+### 8.2. 关键实现规格
+(与V8类似，但`ui_definition`需增加一个`Select`组件来展示从NocoDB获取的产品列表)
 
 ### 8.3. 预期结果
-
-- **启动:** 开发者`npm run dev`后，打开浏览器，应能看到一个包含“采购申请单”链接的门户页面。
-- **渲染:** 点击链接，页面应根据硬编码的`ui_definition`渲染出一个包含两个输入框和一个按钮的表单。
-- **交互与提交:** 填写表单并点击提交后：
-    - 浏览器开发工具的Console中，应能看到沙箱打印的`'Sandbox received form data: ...'`。
-    - 浏览器开发工具的Network面板中，应能看到一个向`/api/records/purchase_requisition`发起的POST请求，其payload为表单数据。
-    - 后端服务的控制台中，应能看到API打印出的接收到的数据。
-
-这个MVP切片一旦完成，就证明了整个动态架构的核心通路是可行的，后续便可在此基础上，逐步替换掉硬编码部分，并集成LLM。
+- **启动:** (同V8)
+- **渲染:** **(核心变更)** 点击“采购申请单”应用后，页面上应出现一个**下拉选择框**，其中包含了从（模拟的）NocoDB API获取的产品列表。
+- **交互与提交:** 选择一个产品后，填写表单并提交，后端控制台打印出提交的数据。
